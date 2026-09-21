@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Benim kütüphanem</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #fff5f8;
+            color: #302936;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            color: #963e65;
+        }
+
+        .tablo-alani {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #efdce4;
+        }
+
+        th {
+            background: #f5dce7;
+        }
+        /* İlk sütun: kitap adları */
+        tbody td:first-child {
+            font-weight: 700;
+            color: #783451;
+        }
+
+        /* İkinci sütun: yazarlar */
+        tbody td:nth-child(2) {
+            color: #625767;
+        }
+
+        /* Tablonun dış çerçevesi */
+        .tablo-alani {
+            border: 1px solid #efdce4;
+            border-radius: 16px;
+            box-shadow: 0 8px 28px rgba(120, 52, 81, 0.08);
+            overflow-x: auto;
+        }
+
+        /* Satırlar biraz daha ferah olsun */
+        th, td {
+            padding: 18px 20px;
+            line-height: 1.5;
+        }
+
+        /* Fareyle üzerine geldiğin satırı belirginleştir */
+        tbody tr:hover {
+            background-color: #fff0f6;
+        }
+
+        /* Son satırın alt çizgisini kaldır */
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Kitap sayısını küçük bir etiket gibi göster */
+        #bilgi {
+            display: inline-block;
+            background: #f5dce7;
+            color: #783451;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .filtreler {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin: 12px 0 24px;
+        }
+
+        .filtreler > div {
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .filtreler label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .filtreler input,
+        .filtreler select {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #d9b8c8;
+            border-radius: 10px;
+            background: white;
+            color: #302936;
+            font: inherit;
+        }
+
+        .filtreler input:focus,
+        .filtreler select:focus {
+            outline: 2px solid #963e65;
+            outline-offset: 2px;
+        }
+        .durum-secimi {
+            padding: 9px;
+            border: 1px solid #d9b8c8;
+            border-radius: 8px;
+            background: white;
+            color: #302936;
+            font: inherit;
+        }
+
+        .kaydet-dugmesi {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            background: #963e65;
+            color: white;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .kaydet-dugmesi:hover {
+            background: #783451;
+        }
+
+        .kaydet-dugmesi:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+        .ekleme-formu {
+            display: grid;
+            gap: 10px;
+            background: white;
+            padding: 24px;
+            margin: 16px 0 24px;
+            border: 1px solid #efdce4;
+            border-radius: 16px;
+        }
+
+        .ekleme-formu h2 {
+            margin: 0 0 8px;
+            color: #783451;
+            font-size: 20px;
+        }
+
+        .ekleme-formu label {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .ekleme-formu input,
+        .ekleme-formu select {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d9b8c8;
+            border-radius: 8px;
+            font: inherit;
+        }
+
+        .ekleme-formu input:focus,
+        .ekleme-formu select:focus {
+            outline: 2px solid #963e65;
+            outline-offset: 2px;
+        }
+
+        .ekleme-formu button {
+            justify-self: start;
+            margin-top: 8px;
+        }
+
+        #ekleme-mesaji {
+            margin: 0;
+            color: #783451;
+        }
+        .duzenle-dugmesi {
+            margin: 6px;
+            padding: 9px 14px;
+            border: 1px solid #963e65;
+            border-radius: 8px;
+            background: white;
+            color: #783451;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .duzenle-dugmesi:hover {
+            background: #f5dce7;
+        }
+
+        .duzenle-dugmesi:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+        .sil-dugmesi {
+            margin: 6px;
+            padding: 9px 14px;
+            border: 1px solid #b4233b;
+            border-radius: 8px;
+            background: #fff1f2;
+            color: #a01830;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .sil-dugmesi:hover {
+            background: #ffe0e5;
+        }
+
+        .sil-dugmesi:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Benim Kütüphanem</h1>
+    <form id="giris-formu" class="ekleme-formu">
+    <h2>Yönetici girişi</h2>
+
+    <label for="yonetici-sifre">Yönetici şifresi</label>
+    <input
+        id="yonetici-sifre"
+        type="password"
+        autocomplete="current-password"
+        required
+    >
+
+    <div>
+        <button type="submit" class="kaydet-dugmesi">
+            Giriş yap
+        </button>
+
+        <button
+            type="button"
+            id="cikis-dugmesi"
+            class="duzenle-dugmesi"
+        >
+            Çıkış yap
+        </button>
+    </div>
+
+    <p id="giris-mesaji" role="status">Yönetici girişi yapılmadı.</p>
+</form>
+
+    <p id="bilgi" role="status">Kitaplar yükleniyor...</p>
+    
+    <form id="kitap-formu" class="ekleme-formu">
+    <h2>Yeni kitap ekle</h2>
+
+    <label for="yeni-kitap-adi">Kitap adı</label>
+    <input
+        id="yeni-kitap-adi"
+        type="text"
+        maxlength="300"
+        required
+    >
+
+    <label for="yeni-yazar">Yazar</label>
+    <input
+        id="yeni-yazar"
+        type="text"
+        maxlength="200"
+        required
+    >
+
+    <label for="yeni-durum">Okuma durumu</label>
+    <select id="yeni-durum">
+        <option value="Okunmadı">Okunmadı</option>
+        <option value="Okundu">Okundu</option>
+        <option value="Okunuyor">Okunuyor</option>
+        <option value="Yarıda bırakıldı">Yarıda bırakıldı</option>
+    </select>
+
+    <button
+        id="kitap-ekle-dugmesi"
+        type="submit"
+        class="kaydet-dugmesi"
+    >
+        Kitabı ekle
+    </button>
+
+    <p id="ekleme-mesaji" role="status"></p>
+</form>
+        <div class="filtreler">
+        <div>
+        <label for="siralama">Kitap sıralaması</label>
+        <select id="siralama">
+            <option value="asc">Kitap adı: A → Z</option>
+            <option value="desc">Kitap adı: Z → A</option>
+        </select>
+        </div>
+
+        <div>
+            <label for="arama">Kitap veya yazar ara</label>
+            <input
+                type="search"
+                id="arama"
+                placeholder="Örneğin: Camus"
+            >
+        </div>
+
+        <div>
+            <label for="durum-filtresi">Okuma durumu</label>
+            <select id="durum-filtresi">
+                <option value="">Tümü</option>
+                <option value="Okundu">Okundu</option>
+                <option value="Okunmadı">Okunmadı</option>
+                <option value="Okunuyor">Okunuyor</option>
+                <option value="Yarıda bırakıldı">Yarıda bırakıldı</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="tablo-alani">
+        <table>
+            <thead>
+                <tr>
+                    <th>Kitap</th>
+                    <th>Yazar</th>
+                    <th>Durum</th>
+                    <th>İşlem</th>
+                </tr>
+            </thead>
+
+            <tbody id="kitap-listesi"></tbody>
+        </table>
+    </div>
+
+    <script>
+            let yoneticiSifresi = "";
+
+    async function yoneticiIstegi(adres, ayarlar = {}) {
+        if (!yoneticiSifresi) {
+            throw new Error("Önce yönetici girişi yapmalısın.");
+        }
+
+        const basliklar = new Headers(ayarlar.headers);
+        basliklar.set("Authorization", `Bearer ${yoneticiSifresi}`);
+
+        const cevap = await fetch(adres, {
+            ...ayarlar,
+            headers: basliklar
+        });
+
+        if (cevap.status === 401) {
+            yoneticiSifresi = "";
+            document.getElementById("giris-mesaji").textContent =
+                "Şifre kabul edilmedi. Yeniden giriş yap.";
+            throw new Error("Yönetici girişi gerekli.");
+        }
+
+        return cevap;
+    }
+
+    document.getElementById("giris-formu").addEventListener(
+        "submit",
+        async function (olay) {
+            olay.preventDefault();
+
+            const alan = document.getElementById("yonetici-sifre");
+            const mesaj = document.getElementById("giris-mesaji");
+            const dugme = olay.submitter;
+
+            yoneticiSifresi = alan.value;
+            alan.value = "";
+            dugme.disabled = true;
+            mesaj.textContent = "Kontrol ediliyor...";
+
+            try {
+                const cevap = await yoneticiIstegi("/yonetici-kontrol");
+
+                if (!cevap.ok) {
+                    throw new Error("Giriş kontrolü tamamlanamadı.");
+                }
+
+                mesaj.textContent =
+                    "Giriş başarılı. Kitapları değiştirebilirsin.";
+            } catch (hata) {
+                yoneticiSifresi = "";
+                mesaj.textContent = hata.message;
+            } finally {
+                dugme.disabled = false;
+            }
+        }
+    );
+
+    document.getElementById("cikis-dugmesi").addEventListener(
+        "click",
+        function () {
+            yoneticiSifresi = "";
+            document.getElementById("yonetici-sifre").value = "";
+            document.getElementById("giris-mesaji").textContent =
+                "Yönetici oturumundan çıkıldı.";
+        }
+    );
+
+    let tumKitaplar = [];
+
+    const bilgi = document.getElementById("bilgi");
+    const liste = document.getElementById("kitap-listesi");
+    const arama = document.getElementById("arama");
+    const durumFiltresi = document.getElementById("durum-filtresi");
+    const siralama = document.getElementById("siralama");
+
+    function kitaplariGoster() {
+        const aranan = arama.value.trim().toLocaleLowerCase("tr");
+        const secilenDurum = durumFiltresi.value;
+
+        const sonuc = tumKitaplar.filter(function (kitap) {
+            const metin = (kitap.kitap_adi + " " + kitap.yazar)
+                .toLocaleLowerCase("tr");
+
+            const aramaUyuyor = metin.includes(aranan);
+
+            const durumUyuyor =
+                secilenDurum === "" || kitap.durum === secilenDurum;
+
+            return aramaUyuyor && durumUyuyor;
+        });
+
+        sonuc.sort(function (a, b) {
+            const karsilastirma = a.kitap_adi.localeCompare(
+                b.kitap_adi,
+                "tr",
+                { sensitivity: "base", numeric: true }
+            );
+
+            if (siralama.value === "desc") {
+                return -karsilastirma;
+            }
+
+            return karsilastirma;
+        });
+
+        liste.replaceChildren();
+
+                for (const kitap of sonuc) {
+            const satir = document.createElement("tr");
+
+            // Kitap adı ve yazar hücreleri
+            for (const alan of ["kitap_adi", "yazar"]) {
+                const hucre = document.createElement("td");
+                hucre.textContent = kitap[alan];
+                satir.appendChild(hucre);
+            }
+
+            // Durum seçimi
+            const durumHucresi = document.createElement("td");
+            const secim = document.createElement("select");
+            secim.className = "durum-secimi";
+            secim.setAttribute(
+                "aria-label",
+                `${kitap.kitap_adi} için okuma durumu`
+            );
+
+            for (const durum of [
+                "Okundu",
+                "Okunmadı",
+                "Okunuyor",
+                "Yarıda bırakıldı"
+            ]) {
+                const secenek = document.createElement("option");
+                secenek.value = durum;
+                secenek.textContent = durum;
+                secim.appendChild(secenek);
+            }
+
+            secim.value = kitap.durum;
+            durumHucresi.appendChild(secim);
+            satir.appendChild(durumHucresi);
+
+            // Kaydet düğmesi
+            const islemHucresi = document.createElement("td");
+            const dugme = document.createElement("button");
+            dugme.type = "button";
+            dugme.className = "kaydet-dugmesi";
+            dugme.textContent = "Kaydet";
+
+            dugme.addEventListener("click", async function () {
+                const yeniDurum = secim.value;
+
+                dugme.disabled = true;
+                secim.disabled = true;
+                dugme.textContent = "Kaydediliyor...";
+
+                try {
+                    const cevap = await yoneticiIstegi(
+                        `/kitaplar/${kitap.id}/durum`,
+                        {
+                            method: "PATCH",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                durum: yeniDurum
+                            })
+                        }
+                    );
+
+                    if (!cevap.ok) {
+                        throw new Error(
+                            `Kayıt başarısız. HTTP: ${cevap.status}`
+                        );
+                    }
+
+                    const kayit = await cevap.json();
+
+                    kitap.durum = kayit.durum;
+                    kitaplariGoster();
+
+                    bilgi.textContent +=
+                        ` — ${kitap.kitap_adi}: durum kaydedildi.`;
+                } catch (hata) {
+                    bilgi.textContent =
+                        "Kayıt doğrulanamadı. Sayfayı yenileyip durumu kontrol et.";
+                    console.error(hata);
+                } finally {
+                    dugme.disabled = false;
+                    secim.disabled = false;
+                    dugme.textContent = "Kaydet";
+                }
+            });
+
+            islemHucresi.appendChild(dugme);
+                        const duzenleDugmesi = document.createElement("button");
+            duzenleDugmesi.type = "button";
+            duzenleDugmesi.className = "duzenle-dugmesi";
+            duzenleDugmesi.textContent = "Düzenle";
+
+            duzenleDugmesi.addEventListener("click", async function () {
+                const yeniAd = prompt("Kitap adı:", kitap.kitap_adi);
+
+                if (yeniAd === null) {
+                    return;
+                }
+
+                const yeniYazar = prompt("Yazar:", kitap.yazar);
+
+                if (yeniYazar === null) {
+                    return;
+                }
+
+                if (!yeniAd.trim() || !yeniYazar.trim()) {
+                    bilgi.textContent =
+                        "Kitap adı ve yazar boş bırakılamaz.";
+                    return;
+                }
+
+                if (yeniAd.trim().length > 300 ||
+                    yeniYazar.trim().length > 200) {
+                    bilgi.textContent =
+                        "Kitap adı en fazla 300, yazar 200 karakter olabilir.";
+                    return;
+                }
+
+                duzenleDugmesi.disabled = true;
+                duzenleDugmesi.textContent = "Kaydediliyor...";
+
+                try {
+                    const cevap = await yoneticiIstegi(`/kitaplar/${kitap.id}`, {
+                        method: "PATCH",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            kitap_adi: yeniAd.trim(),
+                            yazar: yeniYazar.trim()
+                        })
+                    });
+
+                    if (!cevap.ok) {
+                        if (cevap.status === 409) {
+                            throw new Error(
+                                "Bu kitap adı ve yazar zaten kayıtlı."
+                            );
+                        }
+
+                        throw new Error(
+                            `Düzenleme başarısız. HTTP: ${cevap.status}`
+                        );
+                    }
+
+                    const guncellenen = await cevap.json();
+
+                    kitap.kitap_adi = guncellenen.kitap_adi;
+                    kitap.yazar = guncellenen.yazar;
+
+                    kitaplariGoster();
+                    bilgi.textContent += " — Kitap bilgileri güncellendi.";
+                } catch (hata) {
+                    bilgi.textContent =
+                        hata.message +
+                        " Gerekirse sayfayı yenileyip kaydı kontrol et.";
+                } finally {
+                    duzenleDugmesi.disabled = false;
+                    duzenleDugmesi.textContent = "Düzenle";
+                }
+            });
+
+            islemHucresi.appendChild(duzenleDugmesi);
+                        const silDugmesi = document.createElement("button");
+            silDugmesi.type = "button";
+            silDugmesi.className = "sil-dugmesi";
+            silDugmesi.textContent = "Sil";
+
+            silDugmesi.addEventListener("click", async function () {
+                const onay = confirm(
+                    `"${kitap.kitap_adi}" — ${kitap.yazar}\n` +
+                    `Kayıt ID: ${kitap.id}\n\n` +
+                    "Bu kaydı silmek istediğine emin misin?"
+                );
+
+                if (!onay) {
+                    return;
+                }
+
+                silDugmesi.disabled = true;
+                silDugmesi.textContent = "Siliniyor...";
+
+                try {
+                    const cevap = await yoneticiIstegi(`/kitaplar/${kitap.id}`, {
+                        method: "DELETE"
+                    });
+
+                    if (!cevap.ok) {
+                        throw new Error(
+                            `Silme başarısız. HTTP: ${cevap.status}`
+                        );
+                    }
+
+                    tumKitaplar = tumKitaplar.filter(function (kayit) {
+                        return kayit.id !== kitap.id;
+                    });
+
+                    kitaplariGoster();
+                    bilgi.textContent +=
+                        ` — ${kitap.kitap_adi} silindi.`;
+                } catch (hata) {
+                    bilgi.textContent =
+                        hata.message +
+                        " Sayfayı yenileyip kaydın durumunu kontrol et.";
+                } finally {
+                    silDugmesi.disabled = false;
+                    silDugmesi.textContent = "Sil";
+                }
+            });
+
+            islemHucresi.appendChild(silDugmesi);
+            satir.appendChild(islemHucresi);
+            liste.appendChild(satir);
+        }
+
+        bilgi.textContent = sonuc.length === 0
+            ? "Aramana uygun kitap bulunamadı."
+            : `${tumKitaplar.length} kayıttan ${sonuc.length} tanesi gösteriliyor`;
+    }
+
+    async function kitaplariYukle() {
+        arama.disabled = true;
+        durumFiltresi.disabled = true;
+
+        try {
+            const cevap = await fetch("/kitaplar");
+
+            if (!cevap.ok) {
+                throw new Error("Kitaplar alınamadı.");
+            }
+
+            tumKitaplar = await cevap.json();
+            kitaplariGoster();
+
+            arama.disabled = false;
+            durumFiltresi.disabled = false;
+        } catch (hata) {
+            bilgi.textContent =
+                "Kitaplar yüklenemedi. API'yi kontrol edip sayfayı yenile.";
+            console.error(hata);
+        }
+    }
+
+    arama.addEventListener("input", kitaplariGoster);
+    durumFiltresi.addEventListener("change", kitaplariGoster);
+    siralama.addEventListener("change", kitaplariGoster);
+
+    kitaplariYukle();
+    const kitapFormu = document.getElementById("kitap-formu");
+
+    kitapFormu.addEventListener("submit", async function (olay) {
+        olay.preventDefault();
+
+        const adAlani = document.getElementById("yeni-kitap-adi");
+        const yazarAlani = document.getElementById("yeni-yazar");
+        const durumAlani = document.getElementById("yeni-durum");
+        const mesaj = document.getElementById("ekleme-mesaji");
+        const dugme = document.getElementById("kitap-ekle-dugmesi");
+
+        const yeniKitap = {
+            kitap_adi: adAlani.value.trim(),
+            yazar: yazarAlani.value.trim(),
+            durum: durumAlani.value
+        };
+
+        if (!yeniKitap.kitap_adi || !yeniKitap.yazar) {
+            mesaj.textContent = "Kitap adı ve yazar boş bırakılamaz.";
+            return;
+        }
+
+        dugme.disabled = true;
+        mesaj.textContent = "Kaydediliyor...";
+
+        try {
+            const cevap = await fetch("/kitaplar", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(yeniKitap)
+            });
+
+            if (!cevap.ok) {
+                if (cevap.status === 409) {
+                    throw new Error("Bu kitap adı ve yazar zaten kayıtlı.");
+                }
+
+                throw new Error(
+                    `Kitap eklenemedi. HTTP: ${cevap.status}`
+                );
+            }
+
+            const kaydedilenKitap = await cevap.json();
+
+            kitapFormu.reset();
+
+            // Yeni kitabın filtre yüzünden gizlenmesini önle.
+            arama.value = "";
+            durumFiltresi.value = "";
+
+            await kitaplariYukle();
+
+            mesaj.textContent =
+                `${kaydedilenKitap.kitap_adi} veritabanına eklendi.`;
+        } catch (hata) {
+            mesaj.textContent =
+                hata.message +
+                " Tekrar denemeden önce gerekirse sayfayı yenileyip kontrol et.";
+        } finally {
+            dugme.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>
