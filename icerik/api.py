@@ -2,7 +2,11 @@ from fastapi.responses import FileResponse
 import sqlite3
 from pathlib import Path
 import os
-import secrets
+import cachecontrol
+import requests
+from google.auth.transport.requests import Request
+from google.oauth2 import id_token
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field
@@ -11,26 +15,59 @@ from typing import Literal
 app = FastAPI(title="Benim Kütüphanem")
 
 VERITABANI = Path(__file__).parent / "kutuphane.db"
-YONETICI_SIFRESI = os.environ.get("KUTUPHANE_ADMIN_SIFRE")
-
-if not YONETICI_SIFRESI:
-    raise RuntimeError("Yönetici şifresi ortam değişkeninde tanımlanmamış.")
+# Kimlik doğrulama ve yönetici yetkisi sunucuda kontrol edilir.
+# Authentication and administrator permissions are checked on the server.
+FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID", "sena-kutuphane")
+ADMIN_UIDS = set(filter(None, (uid.strip() for uid in os.environ.get(
+    "KUTUPHANE_ADMIN_UIDS", ""
+).split(","))))
+izinli_adresler = list(filter(None, (adres.strip() for adres in os.environ.get(
+    "KUTUPHANE_ALLOWED_ORIGINS", ""
+).split(","))))
+if izinli_adresler:
+    app.add_middleware(
+        CORSMiddleware, allow_origins=izinli_adresler,
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
 
 guvenlik = HTTPBearer(auto_error=False)
+# Google imza sertifikalarını önbelleğe al.
+# Cache Google's signing certificates.
+token_istegi = Request(session=cachecontrol.CacheControl(requests.Session()))
 
 
-def yonetici_kontrol(
+def kullanici_kontrol(
     kimlik: HTTPAuthorizationCredentials | None = Depends(guvenlik)
 ):
-    if kimlik is None or not secrets.compare_digest(
-        kimlik.credentials.encode("utf-8"),
-        YONETICI_SIFRESI.encode("utf-8")
-    ):
-        raise HTTPException(
-            status_code=401,
-            detail="Yönetici şifresi eksik veya yanlış.",
-            headers={"WWW-Authenticate": "Bearer"}
+    if kimlik is None:
+        raise HTTPException(status_code=401, detail="Giriş yapmalısın.")
+    try:
+        kullanici = id_token.verify_firebase_token(
+            kimlik.credentials, token_istegi, audience=FIREBASE_PROJECT_ID
         )
+        if kullanici.get("iss") != f"https://securetoken.google.com/{FIREBASE_PROJECT_ID}":
+            raise ValueError("Yanlış token kaynağı.")
+        uid = kullanici.get("sub")
+        if not isinstance(uid, str) or not uid or len(uid) > 128:
+            raise ValueError("Geçersiz kullanıcı kimliği.")
+        return kullanici
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Oturum geçersiz. Yeniden giriş yap.")
+    except requests.RequestException:
+        raise HTTPException(status_code=503, detail="Giriş doğrulama servisine ulaşılamadı.")
+
+
+def yonetici_kontrol(kullanici: dict = Depends(kullanici_kontrol)):
+    if kullanici["sub"] not in ADMIN_UIDS:
+        raise HTTPException(status_code=403, detail="Bu işlem için yönetici yetkisi gerekli.")
+    return kullanici
+
+
+@app.get("/oturum")
+def oturum(kullanici: dict = Depends(kullanici_kontrol)):
+    return {"uid": kullanici["sub"], "yonetici": kullanici["sub"] in ADMIN_UIDS}
+
 @app.get(
     "/yonetici-kontrol",
     dependencies=[Depends(yonetici_kontrol)]

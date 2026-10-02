@@ -6,6 +6,7 @@
     <title>Benim kütüphanem</title>
 
     <style>
+        [hidden] { display: none !important; }
         body {
             font-family: Arial, sans-serif;
             background: #fff5f8;
@@ -235,9 +236,11 @@
 <body>
     <h1>Benim Kütüphanem</h1>
     <form id="giris-formu" class="ekleme-formu">
-    <h2>Yönetici girişi</h2>
+    <h2>Hesap girişi</h2>
+    <label for="kullanici-email">E-posta</label>
+    <input id="kullanici-email" type="email" autocomplete="email" required>
 
-    <label for="yonetici-sifre">Yönetici şifresi</label>
+    <label for="yonetici-sifre">Şifre</label>
     <input
         id="yonetici-sifre"
         type="password"
@@ -246,6 +249,7 @@
     >
 
     <div>
+        <button id="kayit-dugmesi" type="button" class="duzenle-dugmesi">Kayıt ol</button>
         <button type="submit" class="kaydet-dugmesi">
             Giriş yap
         </button>
@@ -259,12 +263,12 @@
         </button>
     </div>
 
-    <p id="giris-mesaji" role="status">Yönetici girişi yapılmadı.</p>
+    <p id="giris-mesaji" role="status">Kitapları gezebilirsin. Değişiklik yapmak için yönetici hesabıyla giriş yap.</p>
 </form>
 
     <p id="bilgi" role="status">Kitaplar yükleniyor...</p>
     
-    <form id="kitap-formu" class="ekleme-formu">
+    <form id="kitap-formu" class="ekleme-formu" hidden>
     <h2>Yeni kitap ekle</h2>
 
     <label for="yeni-kitap-adi">Kitap adı</label>
@@ -346,73 +350,88 @@
         </table>
     </div>
 
-    <script>
-            let yoneticiSifresi = "";
+    <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+        createUserWithEmailAndPassword, signOut } from
+        "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
-    async function yoneticiIstegi(adres, ayarlar = {}) {
-        if (!yoneticiSifresi) {
-            throw new Error("Önce yönetici girişi yapmalısın.");
-        }
+    const firebaseConfig = {
+        apiKey: "AIzaSyBh_qNL1N1-_52gWKuBsxfMrR1UCscaQ40",
+        authDomain: "sena-kutuphane.firebaseapp.com",
+        projectId: "sena-kutuphane",
+        storageBucket: "sena-kutuphane.firebasestorage.app",
+        messagingSenderId: "695955033475",
+        appId: "1:695955033475:web:30aeb945ec936253a63ab6"
+    };
+    const auth = getAuth(initializeApp(firebaseConfig));
+    // Netlify ayrıysa buraya Render API adresini yaz (sonunda / olmadan).
+    // For a separate Netlify frontend, enter the Render API URL here (no trailing /).
+    const API_ADRESI = "";
+    let yonetici = false;
+    let oturumSurumu = 0;
+    const girisMesaji = document.getElementById("giris-mesaji");
+    const cikisDugmesi = document.getElementById("cikis-dugmesi");
+    cikisDugmesi.hidden = true;
 
-        const basliklar = new Headers(ayarlar.headers);
-        basliklar.set("Authorization", `Bearer ${yoneticiSifresi}`);
-
-        const cevap = await fetch(adres, {
-            ...ayarlar,
-            headers: basliklar
-        });
-
-        if (cevap.status === 401) {
-            yoneticiSifresi = "";
-            document.getElementById("giris-mesaji").textContent =
-                "Şifre kabul edilmedi. Yeniden giriş yap.";
-            throw new Error("Yönetici girişi gerekli.");
-        }
-
-        return cevap;
+    function girisHatasi(hata) {
+        const mesajlar = {
+            "auth/invalid-credential": "E-posta veya şifre yanlış.",
+            "auth/email-already-in-use": "Bu e-posta zaten kayıtlı. Giriş yapabilirsin.",
+            "auth/weak-password": "Daha güçlü bir şifre seç (en az 6 karakter).",
+            "auth/invalid-email": "Geçerli bir e-posta adresi yaz.",
+            "auth/too-many-requests": "Çok fazla deneme yapıldı. Biraz sonra tekrar dene.",
+            "auth/network-request-failed": "Bağlantı kurulamadı. İnternetini kontrol et."
+        };
+        return mesajlar[hata.code] || "İşlem tamamlanamadı. Lütfen tekrar dene.";
     }
 
-    document.getElementById("giris-formu").addEventListener(
-        "submit",
-        async function (olay) {
-            olay.preventDefault();
-
-            const alan = document.getElementById("yonetici-sifre");
-            const mesaj = document.getElementById("giris-mesaji");
-            const dugme = olay.submitter;
-
-            yoneticiSifresi = alan.value;
-            alan.value = "";
-            dugme.disabled = true;
-            mesaj.textContent = "Kontrol ediliyor...";
-
-            try {
-                const cevap = await yoneticiIstegi("/yonetici-kontrol");
-
-                if (!cevap.ok) {
-                    throw new Error("Giriş kontrolü tamamlanamadı.");
-                }
-
-                mesaj.textContent =
-                    "Giriş başarılı. Kitapları değiştirebilirsin.";
-            } catch (hata) {
-                yoneticiSifresi = "";
-                mesaj.textContent = hata.message;
-            } finally {
-                dugme.disabled = false;
-            }
+    async function hesapIslemi(kayit) {
+        const form = document.getElementById("giris-formu");
+        if (!form.reportValidity()) return;
+        const email = document.getElementById("kullanici-email").value.trim();
+        const sifreAlani = document.getElementById("yonetici-sifre");
+        const sifre = sifreAlani.value;
+        const dugmeler = form.querySelectorAll("button");
+        dugmeler.forEach(dugme => dugme.disabled = true);
+        girisMesaji.textContent = "İşlem yapılıyor...";
+        try {
+            const islem = kayit ? createUserWithEmailAndPassword : signInWithEmailAndPassword;
+            await islem(auth, email, sifre);
+            sifreAlani.value = "";
+        } catch (hata) {
+            girisMesaji.textContent = girisHatasi(hata);
+        } finally {
+            dugmeler.forEach(dugme => dugme.disabled = false);
         }
-    );
+    }
+    document.getElementById("giris-formu").addEventListener("submit", olay => {
+        olay.preventDefault();
+        hesapIslemi(false);
+    });
+    document.getElementById("kayit-dugmesi").addEventListener("click", () => hesapIslemi(true));
+    cikisDugmesi.addEventListener("click", async () => {
+        try { await signOut(auth); }
+        catch (hata) { girisMesaji.textContent = girisHatasi(hata); }
+    });
 
-    document.getElementById("cikis-dugmesi").addEventListener(
-        "click",
-        function () {
-            yoneticiSifresi = "";
-            document.getElementById("yonetici-sifre").value = "";
-            document.getElementById("giris-mesaji").textContent =
-                "Yönetici oturumundan çıkıldı.";
+    async function yoneticiIstegi(adres, ayarlar = {}) {
+        if (!auth.currentUser || !yonetici) {
+            throw new Error("Bu işlem için yönetici hesabıyla giriş yapmalısın.");
         }
-    );
+        const basliklar = new Headers(ayarlar.headers);
+        // Şifre yerine Firebase'in yenilenebilir kimlik tokenını gönder.
+        // Send Firebase's refreshable ID token instead of a password.
+        basliklar.set("Authorization", `Bearer ${await auth.currentUser.getIdToken()}`);
+        const cevap = await fetch(API_ADRESI + adres, {...ayarlar, headers: basliklar});
+        if (cevap.status === 401 || cevap.status === 403) {
+            yonetici = false;
+            document.getElementById("kitap-formu").hidden = true;
+            kitaplariGoster();
+            throw new Error("Oturum veya yönetici yetkisi doğrulanamadı. Yeniden giriş yap.");
+        }
+        return cevap;
+    }
 
     let tumKitaplar = [];
 
@@ -462,6 +481,17 @@
                 const hucre = document.createElement("td");
                 hucre.textContent = kitap[alan];
                 satir.appendChild(hucre);
+            }
+
+            if (!yonetici) {
+                const durum = document.createElement("td");
+                durum.textContent = kitap.durum;
+                satir.appendChild(durum);
+                const islem = document.createElement("td");
+                islem.textContent = "—";
+                satir.appendChild(islem);
+                liste.appendChild(satir);
+                continue;
             }
 
             // Durum seçimi
@@ -680,7 +710,7 @@
         durumFiltresi.disabled = true;
 
         try {
-            const cevap = await fetch("/kitaplar");
+            const cevap = await fetch(API_ADRESI + "/kitaplar");
 
             if (!cevap.ok) {
                 throw new Error("Kitaplar alınamadı.");
@@ -729,7 +759,7 @@
         mesaj.textContent = "Kaydediliyor...";
 
         try {
-            const cevap = await fetch("/kitaplar", {
+            const cevap = await yoneticiIstegi("/kitaplar", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -765,6 +795,34 @@
                 " Tekrar denemeden önce gerekirse sayfayı yenileyip kontrol et.";
         } finally {
             dugme.disabled = false;
+        }
+    });
+    onAuthStateChanged(auth, async kullanici => {
+        const surum = ++oturumSurumu;
+        yonetici = false;
+        kitapFormu.hidden = true;
+        cikisDugmesi.hidden = !kullanici;
+        kitaplariGoster();
+        if (!kullanici) {
+            girisMesaji.textContent = "Giriş yapılmadı. Kitapları gezebilirsin.";
+            return;
+        }
+        girisMesaji.textContent = "Hesap yetkileri kontrol ediliyor...";
+        try {
+            const cevap = await fetch(API_ADRESI + "/oturum", {
+                headers: {Authorization: `Bearer ${await kullanici.getIdToken()}`}
+            });
+            if (!cevap.ok) throw new Error("Yetkiler doğrulanamadı. API bağlantısını kontrol et.");
+            const oturum = await cevap.json();
+            if (surum !== oturumSurumu) return;
+            yonetici = oturum.yonetici === true;
+            kitapFormu.hidden = !yonetici;
+            girisMesaji.textContent = yonetici
+                ? "Yönetici girişi başarılı. Kitapları değiştirebilirsin."
+                : "Kullanıcı girişi başarılı. Kitapları gezebilirsin.";
+            kitaplariGoster();
+        } catch (hata) {
+            if (surum === oturumSurumu) girisMesaji.textContent = hata.message;
         }
     });
 </script>

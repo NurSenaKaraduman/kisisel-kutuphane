@@ -1,2 +1,4 @@
 fastapi
 uvicorn[standard]
+google-auth[requests]>=2.40,<3
+cachecontrol>=0.14,<1
