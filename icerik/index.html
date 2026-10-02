@@ -242,6 +242,7 @@
         <div>
             <button id="yonetici-girisi" class="kaydet-dugmesi" type="button">Yönetici girişi</button>
             <button id="kullanici-girisi" class="duzenle-dugmesi" type="button">Kullanıcı girişi</button>
+            <button id="misafir-girisi" class="duzenle-dugmesi" type="button">Misafir girişi</button>
         </div>
     </div>
     <form id="giris-formu" class="ekleme-formu" hidden>
@@ -442,8 +443,30 @@
     });
     document.getElementById("kayit-dugmesi").addEventListener("click", () => hesapIslemi(true));
     cikisDugmesi.addEventListener("click", async () => {
-        try { await signOut(auth); }
-        catch (hata) { girisMesaji.textContent = girisHatasi(hata); }
+        try {
+            await signOut(auth);
+
+            // Çıkışta giriş seçeneklerine dön.
+            // Return to the login choices after leaving.
+            secilenRol = "kullanici";
+            oturumSurumu++;
+            yonetici = false;
+
+            kitaplikEkrani.hidden = true;
+            kitapFormu.hidden = true;
+            girisEkrani.hidden = false;
+            girisFormu.hidden = true;
+            rolSecimi.hidden = false;
+            cikisDugmesi.hidden = true;
+
+            tumKitaplar = [];
+            liste.replaceChildren();
+            document.getElementById("yonetici-sifre").value = "";
+            girisMesaji.textContent = "Çıkış yapıldı.";
+        } catch (hata) {
+            document.getElementById("oturum-mesaji").textContent =
+                girisHatasi(hata);
+        }
     });
 
     async function yoneticiIstegi(adres, ayarlar = {}) {
@@ -827,7 +850,31 @@
             dugme.disabled = false;
         }
     });
+
+    // Misafir kitapları yalnızca görüntüleyebilir.
+    // Guests can only view the books.
+    document.getElementById("misafir-girisi").addEventListener("click", async () => {
+        secilenRol = "misafir";
+        oturumSurumu++;
+        yonetici = false;
+
+        kitapFormu.hidden = true;
+        girisEkrani.hidden = true;
+        kitaplikEkrani.hidden = false;
+        cikisDugmesi.hidden = false;
+
+        document.getElementById("oturum-mesaji").textContent =
+            "Misafir olarak görüntülüyorsun.";
+        
+        kitaplariGoster();
+        await kitaplariYukle();
+    });
+
     onAuthStateChanged(auth, async kullanici => {
+        // Misafir görünümünü koru.
+        // Preserve the guest view.
+        if (secilenRol === "misafir") return;
+        
         const surum = ++oturumSurumu;
         yonetici = false;
         kitapFormu.hidden = true;
