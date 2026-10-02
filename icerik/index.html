@@ -235,8 +235,17 @@
 
 <body>
     <h1>Benim Kütüphanem</h1>
-    <form id="giris-formu" class="ekleme-formu">
-    <h2>Hesap girişi</h2>
+    <section id="giris-ekrani">
+    <div id="rol-secimi" class="ekleme-formu">
+        <h2>Kütüphaneme hoş geldin</h2>
+        <p>Devam etmek için giriş türünü seç.</p>
+        <div>
+            <button id="yonetici-girisi" class="kaydet-dugmesi" type="button">Yönetici girişi</button>
+            <button id="kullanici-girisi" class="duzenle-dugmesi" type="button">Kullanıcı girişi</button>
+        </div>
+    </div>
+    <form id="giris-formu" class="ekleme-formu" hidden>
+    <h2 id="giris-basligi">Kullanıcı girişi</h2>
     <label for="kullanici-email">E-posta</label>
     <input id="kullanici-email" type="email" autocomplete="email" required>
 
@@ -254,18 +263,17 @@
             Giriş yap
         </button>
 
-        <button
-            type="button"
-            id="cikis-dugmesi"
-            class="duzenle-dugmesi"
-        >
-            Çıkış yap
-        </button>
+        <button type="button" id="geri-dugmesi" class="duzenle-dugmesi">Geri</button>
     </div>
 
-    <p id="giris-mesaji" role="status">Kitapları gezebilirsin. Değişiklik yapmak için yönetici hesabıyla giriş yap.</p>
+    <p id="giris-mesaji" role="status">E-posta ve şifrenle giriş yap.</p>
 </form>
-
+    </section>
+    <main id="kitaplik-ekrani" hidden>
+    <div class="ekleme-formu">
+        <p id="oturum-mesaji" role="status"></p>
+        <button type="button" id="cikis-dugmesi" class="duzenle-dugmesi">Çıkış yap</button>
+    </div>
     <p id="bilgi" role="status">Kitaplar yükleniyor...</p>
     
     <form id="kitap-formu" class="ekleme-formu" hidden>
@@ -350,6 +358,7 @@
         </table>
     </div>
 
+    </main>
     <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword,
@@ -368,6 +377,28 @@
     // Netlify ayrıysa buraya Render API adresini yaz (sonunda / olmadan).
     // For a separate Netlify frontend, enter the Render API URL here (no trailing /).
     const API_ADRESI = "";
+    let secilenRol = sessionStorage.getItem("kutuphane-giris-rolu") || "kullanici";
+    const girisEkrani = document.getElementById("giris-ekrani");
+    const kitaplikEkrani = document.getElementById("kitaplik-ekrani");
+    const girisFormu = document.getElementById("giris-formu");
+    const rolSecimi = document.getElementById("rol-secimi");
+    function rolSec(rol) {
+        secilenRol = rol;
+        sessionStorage.setItem("kutuphane-giris-rolu", rol);
+        rolSecimi.hidden = true;
+        girisFormu.hidden = false;
+        document.getElementById("giris-basligi").textContent =
+            rol === "yonetici" ? "Yönetici girişi" : "Kullanıcı girişi";
+        document.getElementById("kayit-dugmesi").hidden = rol === "yonetici";
+        girisMesaji.textContent = "E-posta ve şifrenle giriş yap.";
+        document.getElementById("kullanici-email").focus();
+    }
+    document.getElementById("yonetici-girisi").addEventListener("click", () => rolSec("yonetici"));
+    document.getElementById("kullanici-girisi").addEventListener("click", () => rolSec("kullanici"));
+    document.getElementById("geri-dugmesi").addEventListener("click", () => {
+        girisFormu.hidden = true;
+        rolSecimi.hidden = false;
+    });
     let yonetici = false;
     let oturumSurumu = 0;
     const girisMesaji = document.getElementById("giris-mesaji");
@@ -732,7 +763,6 @@
     durumFiltresi.addEventListener("change", kitaplariGoster);
     siralama.addEventListener("change", kitaplariGoster);
 
-    kitaplariYukle();
     const kitapFormu = document.getElementById("kitap-formu");
 
     kitapFormu.addEventListener("submit", async function (olay) {
@@ -801,10 +831,16 @@
         const surum = ++oturumSurumu;
         yonetici = false;
         kitapFormu.hidden = true;
+        kitaplikEkrani.hidden = true;
+        girisEkrani.hidden = false;
         cikisDugmesi.hidden = !kullanici;
         kitaplariGoster();
         if (!kullanici) {
-            girisMesaji.textContent = "Giriş yapılmadı. Kitapları gezebilirsin.";
+            rolSecimi.hidden = false;
+            girisFormu.hidden = true;
+            tumKitaplar = [];
+            liste.replaceChildren();
+            girisMesaji.textContent = "Giriş yapılmadı.";
             return;
         }
         girisMesaji.textContent = "Hesap yetkileri kontrol ediliyor...";
@@ -815,12 +851,23 @@
             if (!cevap.ok) throw new Error("Yetkiler doğrulanamadı. API bağlantısını kontrol et.");
             const oturum = await cevap.json();
             if (surum !== oturumSurumu) return;
-            yonetici = oturum.yonetici === true;
+            if (secilenRol === "yonetici" && oturum.yonetici !== true) {
+                await signOut(auth);
+                rolSec("yonetici");
+                girisMesaji.textContent = "Bu hesabın yönetici yetkisi yok. Kullanıcı girişini seçebilirsin.";
+                return;
+            }
+            // Giriş türü yetki vermez; yönetici yetkisini sunucu doğrular.
+            // The selected login type grants no permissions; the server verifies admin access.
+            yonetici = secilenRol === "yonetici" && oturum.yonetici === true;
             kitapFormu.hidden = !yonetici;
             girisMesaji.textContent = yonetici
                 ? "Yönetici girişi başarılı. Kitapları değiştirebilirsin."
                 : "Kullanıcı girişi başarılı. Kitapları gezebilirsin.";
-            kitaplariGoster();
+            document.getElementById("oturum-mesaji").textContent = girisMesaji.textContent;
+            girisEkrani.hidden = true;
+            kitaplikEkrani.hidden = false;
+            await kitaplariYukle();
         } catch (hata) {
             if (surum === oturumSurumu) girisMesaji.textContent = hata.message;
         }
